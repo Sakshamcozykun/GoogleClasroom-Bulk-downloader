@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Classroom Bulk Downloader",
-  "version": "2.0.0",
+  "version": "2.2.0",
   "description": "Bulk download Google Classroom file attachments with ease.",
   "permissions": [
     "downloads",
@@ -12,7 +12,9 @@
   "host_permissions": [
     "https://classroom.google.com/*",
     "https://drive.google.com/*",
-    "https://docs.google.com/*"
+    "https://docs.google.com/*",
+    "https://*.googleusercontent.com/*",
+    "https://drive.usercontent.google.com/*"
   ],
   "background": {
     "service_worker": "background.js"
