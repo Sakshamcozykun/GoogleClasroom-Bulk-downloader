@@ -1,0 +1,509 @@
+/* ═══════════════════════════════════════════════════════════════
+   Classroom Bulk Downloader — styles.css (v2.4)
+   ▸ Material Design matching Google Classroom
+   ▸ Manual light/dark toggle via [data-cbd-theme] on <html>
+   ▸ Falls back to system preference if no manual choice yet
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Design Tokens — Light (default) ───────────────────────────── */
+:root {
+  --cbd-primary:         #137333;
+  --cbd-primary-hover:   #0d5626;
+  --cbd-primary-light:   #e6f4ea;
+  --cbd-primary-text:    #ffffff;
+
+  --cbd-surface:         #ffffff;
+  --cbd-surface-raised:  #f8f9fa;
+  --cbd-border:          #dadce0;
+  --cbd-border-subtle:   #e8eaed;
+
+  --cbd-text:            #202124;
+  --cbd-text-secondary:  #5f6368;
+  --cbd-text-disabled:   #bdc1c6;
+
+  --cbd-success:         #137333;
+  --cbd-warning:         #b06000;
+  --cbd-error:           #c5221f;
+
+  --cbd-shadow-sm:       0 1px 3px rgba(60,64,67,.20), 0 1px 2px rgba(60,64,67,.12);
+  --cbd-shadow-md:       0 4px 14px rgba(60,64,67,.20), 0 1px 6px rgba(60,64,67,.10);
+  --cbd-shadow-drag:     0 8px 24px rgba(60,64,67,.28), 0 2px 8px rgba(60,64,67,.16);
+  --cbd-radius:          12px;
+  --cbd-radius-sm:       8px;
+  --cbd-panel-width:     228px;
+  --cbd-check-size:      18px;
+  --cbd-font:            'Google Sans', Roboto, Arial, sans-serif;
+  --cbd-transition:      0.18s cubic-bezier(.4,0,.2,1);
+}
+
+/* ── Dark theme tokens (system preference, only when no manual choice) ── */
+@media (prefers-color-scheme: dark) {
+  html:not([data-cbd-theme]) {
+    --cbd-primary:         #34a853;
+    --cbd-primary-hover:   #2d9147;
+    --cbd-primary-light:   #1a3322;
+    --cbd-primary-text:    #ffffff;
+
+    --cbd-surface:         #1e2124;
+    --cbd-surface-raised:  #292d30;
+    --cbd-border:          #3c4043;
+    --cbd-border-subtle:   #303538;
+
+    --cbd-text:            #e8eaed;
+    --cbd-text-secondary:  #9aa0a6;
+    --cbd-text-disabled:   #5f6368;
+
+    --cbd-success:         #34a853;
+    --cbd-warning:         #fdd663;
+    --cbd-error:           #f28b82;
+
+    --cbd-shadow-sm:       0 1px 3px rgba(0,0,0,.50), 0 1px 2px rgba(0,0,0,.30);
+    --cbd-shadow-md:       0 4px 14px rgba(0,0,0,.50), 0 1px 6px rgba(0,0,0,.30);
+    --cbd-shadow-drag:     0 8px 24px rgba(0,0,0,.60), 0 2px 8px rgba(0,0,0,.40);
+  }
+}
+
+/* ── Manual dark override (set by JS via data-cbd-theme="dark") ── */
+html[data-cbd-theme="dark"] {
+  --cbd-primary:         #34a853;
+  --cbd-primary-hover:   #2d9147;
+  --cbd-primary-light:   #1a3322;
+  --cbd-primary-text:    #ffffff;
+
+  --cbd-surface:         #1e2124;
+  --cbd-surface-raised:  #292d30;
+  --cbd-border:          #3c4043;
+  --cbd-border-subtle:   #303538;
+
+  --cbd-text:            #e8eaed;
+  --cbd-text-secondary:  #9aa0a6;
+  --cbd-text-disabled:   #5f6368;
+
+  --cbd-success:         #34a853;
+  --cbd-warning:         #fdd663;
+  --cbd-error:           #f28b82;
+
+  --cbd-shadow-sm:       0 1px 3px rgba(0,0,0,.50), 0 1px 2px rgba(0,0,0,.30);
+  --cbd-shadow-md:       0 4px 14px rgba(0,0,0,.50), 0 1px 6px rgba(0,0,0,.30);
+  --cbd-shadow-drag:     0 8px 24px rgba(0,0,0,.60), 0 2px 8px rgba(0,0,0,.40);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Main Panel — Fixed, freely draggable on both axes
+   ══════════════════════════════════════════════════════════════════ */
+#cbd-toolbar {
+  all: initial;
+
+  position: fixed !important;
+  right:    20px  !important;
+  top:      120px !important;
+  z-index:  2147483647 !important;
+
+  width: var(--cbd-panel-width);
+
+  display:       block;
+  font-family:   var(--cbd-font);
+  font-size:     13px;
+  color:         var(--cbd-text);
+  background:    var(--cbd-surface);
+  border:        1px solid var(--cbd-border);
+  border-radius: var(--cbd-radius);
+  box-shadow:    var(--cbd-shadow-md);
+  overflow:      hidden;
+
+  transition: box-shadow var(--cbd-transition);
+  animation: cbd-slide-in 0.24s cubic-bezier(.4,0,.2,1) both;
+}
+
+#cbd-toolbar.cbd-dragging {
+  box-shadow: var(--cbd-shadow-drag);
+  cursor:     grabbing !important;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: none;
+}
+
+@keyframes cbd-slide-in {
+  from { opacity: 0; transform: translateX(16px) scale(0.98); }
+  to   { opacity: 1; transform: translateX(0)   scale(1);     }
+}
+
+/* ── Drag Handle ────────────────────────────────────────────────── */
+.cbd-drag-handle {
+  all: initial;
+  display:         flex;
+  align-items:     center;
+  gap:             6px;
+  padding:         9px 10px 8px;
+  border-bottom:   1px solid var(--cbd-border);
+  background:      var(--cbd-surface-raised);
+  cursor:          grab;
+  user-select:     none;
+  -webkit-user-select: none;
+  border-radius:   var(--cbd-radius) var(--cbd-radius) 0 0;
+  box-sizing:      border-box;
+  width:           100%;
+}
+
+.cbd-drag-handle:active { cursor: grabbing; }
+
+.cbd-drag-dots {
+  all: initial;
+  font-size:   16px;
+  color:       var(--cbd-text-secondary);
+  line-height: 1;
+  font-family: var(--cbd-font);
+  margin-right: 1px;
+  letter-spacing: -1px;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.cbd-panel-title {
+  all: initial;
+  font-family:    var(--cbd-font);
+  font-size:      12px;
+  font-weight:    700;
+  color:          var(--cbd-text);
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  flex:           1;
+}
+
+#cbd-toolbar::before {
+  content:  '';
+  display:  block;
+  height:   3px;
+  background: linear-gradient(90deg, var(--cbd-primary) 0%, #34a853 100%);
+}
+
+/* ── Header icon buttons (theme + collapse) ─────────────────────── */
+.cbd-icon-btn {
+  all: initial;
+  display:         inline-flex;
+  align-items:     center;
+  justify-content: center;
+  width:           22px;
+  height:          22px;
+  border-radius:   50%;
+  font-family:     var(--cbd-font);
+  font-size:       14px;
+  font-weight:     700;
+  line-height:     1;
+  color:           var(--cbd-text-secondary);
+  cursor:          pointer;
+  flex-shrink:     0;
+  transition:      background var(--cbd-transition), color var(--cbd-transition);
+}
+
+.cbd-icon-btn:hover {
+  background: var(--cbd-border);
+  color:      var(--cbd-text);
+}
+
+#cbd-collapse-btn { font-size: 16px; }
+
+/* ── Panel Body ─────────────────────────────────────────────────── */
+.cbd-panel-body {
+  all: initial;
+  display:        flex;
+  flex-direction: column;
+  gap:            10px;
+  padding:        12px;
+  box-sizing:     border-box;
+}
+
+/* ── Select All Row ─────────────────────────────────────────────── */
+.cbd-select-all-label {
+  all: initial;
+  display:     inline-flex;
+  align-items: center;
+  gap:         8px;
+  cursor:      pointer;
+  font-family: var(--cbd-font);
+  font-size:   13px;
+  font-weight: 500;
+  color:       var(--cbd-text);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.cbd-label-text {
+  all: initial;
+  font-family: var(--cbd-font);
+  font-size:   13px;
+  font-weight: 500;
+  color:       var(--cbd-text);
+}
+
+/* ── Count Badge ────────────────────────────────────────────────── */
+.cbd-count-badge {
+  all: initial;
+  display:       inline-block;
+  font-family:   var(--cbd-font);
+  font-size:     11px;
+  font-weight:   500;
+  color:         var(--cbd-text-secondary);
+  background:    var(--cbd-surface-raised);
+  border-radius: 100px;
+  padding:       3px 9px;
+  letter-spacing:.01em;
+  white-space:   nowrap;
+  border:        1px solid var(--cbd-border);
+}
+
+/* ── Format Selector Row ─────────────────────────────────────────── */
+.cbd-format-row {
+  all: initial;
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  width:       100%;
+  box-sizing:  border-box;
+}
+
+.cbd-format-label {
+  all: initial;
+  font-family:  var(--cbd-font);
+  font-size:    12px;
+  font-weight:  600;
+  color:        var(--cbd-text-secondary);
+  flex-shrink:  0;
+  white-space:  nowrap;
+}
+
+.cbd-format-select {
+  all: initial;
+  flex:          1;
+  font-family:   var(--cbd-font);
+  font-size:     12px;
+  font-weight:   500;
+  color:         var(--cbd-text);
+  background:    var(--cbd-surface);
+  border:        1px solid var(--cbd-border);
+  border-radius: var(--cbd-radius-sm);
+  padding:       5px 8px;
+  cursor:        pointer;
+  outline:       none;
+  box-sizing:    border-box;
+  appearance:    auto;
+  -webkit-appearance: auto;
+  transition:    border-color var(--cbd-transition), box-shadow var(--cbd-transition);
+}
+
+.cbd-format-select:hover { border-color: var(--cbd-primary); }
+.cbd-format-select:focus {
+  border-color: var(--cbd-primary);
+  box-shadow:   0 0 0 2px rgba(19,115,51,.18);
+}
+
+/* ── Format hint (info under dropdown) ──────────────────────────── */
+.cbd-format-hint {
+  all: initial;
+  display:       block;
+  font-family:   var(--cbd-font);
+  font-size:     10.5px;
+  line-height:   1.4;
+  color:         var(--cbd-text-secondary);
+  background:    var(--cbd-primary-light);
+  border-left:   3px solid var(--cbd-primary);
+  border-radius: 6px;
+  padding:       6px 8px;
+  margin:        0;
+  word-break:    normal;
+}
+
+/* ── Button Row ─────────────────────────────────────────────────── */
+.cbd-btn-row {
+  all: initial;
+  display:         flex;
+  gap:             6px;
+  justify-content: stretch;
+  width:           100%;
+  box-sizing:      border-box;
+}
+
+.cbd-btn {
+  all: initial;
+  display:         inline-flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             4px;
+  flex:            1;
+  font-family:     var(--cbd-font);
+  font-size:       12px;
+  font-weight:     600;
+  line-height:     1;
+  border-radius:   100px;
+  padding:         7px 10px;
+  cursor:          pointer;
+  white-space:     nowrap;
+  outline:         none;
+  box-sizing:      border-box;
+  transition:
+    background   var(--cbd-transition),
+    box-shadow   var(--cbd-transition),
+    opacity      var(--cbd-transition),
+    transform    var(--cbd-transition);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.cbd-btn:active { transform: scale(0.96); }
+
+.cbd-btn-primary {
+  background: var(--cbd-primary);
+  color:      var(--cbd-primary-text);
+  box-shadow: var(--cbd-shadow-sm);
+}
+
+.cbd-btn-primary:hover:not([disabled]) {
+  background: var(--cbd-primary-hover);
+  box-shadow: 0 2px 8px rgba(19,115,51,.40);
+}
+
+.cbd-btn-primary[disabled] {
+  opacity:    0.38;
+  cursor:     not-allowed;
+  box-shadow: none;
+}
+
+.cbd-btn-secondary {
+  background: var(--cbd-surface-raised);
+  color:      var(--cbd-text);
+  border:     1px solid var(--cbd-border);
+}
+
+.cbd-btn-secondary:hover {
+  background:   var(--cbd-primary-light);
+  border-color: var(--cbd-primary);
+  color:        var(--cbd-primary);
+}
+
+/* ── Progress Bar ───────────────────────────────────────────────── */
+.cbd-progress-bar {
+  display:       none;
+  height:        4px;
+  background:    var(--cbd-border-subtle);
+  border-radius: 2px;
+  overflow:      hidden;
+  width:         100%;
+}
+
+.cbd-progress-fill {
+  height:        100%;
+  background:    linear-gradient(90deg, var(--cbd-primary) 0%, #34a853 100%);
+  border-radius: 2px;
+  width:         0%;
+  transition:    width 0.38s ease;
+}
+
+/* ── Status Message ─────────────────────────────────────────────── */
+.cbd-status {
+  all: initial;
+  display:     block;
+  font-family: var(--cbd-font);
+  font-size:   11px;
+  line-height: 1.5;
+  color:       var(--cbd-text-secondary);
+  word-break:  break-word;
+}
+
+.cbd-status:empty     { display: none; }
+.cbd-status--success  { color: var(--cbd-success); }
+.cbd-status--warning  { color: var(--cbd-warning); }
+.cbd-status--error    { color: var(--cbd-error);   }
+
+/* ══════════════════════════════════════════════════════════════════
+   Checkbox Styles
+   ══════════════════════════════════════════════════════════════════ */
+input.cbd-checkbox {
+  all:      initial;
+  position: absolute;
+  opacity:  0;
+  width:    var(--cbd-check-size);
+  height:   var(--cbd-check-size);
+  cursor:   pointer;
+  z-index:  1;
+  margin:   0;
+}
+
+.cbd-checkmark {
+  all:             initial;
+  display:         inline-flex;
+  align-items:     center;
+  justify-content: center;
+  width:           var(--cbd-check-size);
+  height:          var(--cbd-check-size);
+  border-radius:   4px;
+  border:          2px solid var(--cbd-border);
+  background:      var(--cbd-surface);
+  flex-shrink:     0;
+  pointer-events:  none;
+  box-sizing:      border-box;
+  transition:
+    border-color var(--cbd-transition),
+    background   var(--cbd-transition),
+    box-shadow   var(--cbd-transition);
+}
+
+input.cbd-checkbox:checked + .cbd-checkmark {
+  background:   var(--cbd-primary);
+  border-color: var(--cbd-primary);
+}
+
+input.cbd-checkbox:checked + .cbd-checkmark::after {
+  content:     '';
+  display:     block;
+  width:       5px;
+  height:      9px;
+  border:      2px solid var(--cbd-primary-text);
+  border-top:  none;
+  border-left: none;
+  transform:   rotate(45deg) translate(-1px, -1px);
+}
+
+input.cbd-checkbox:indeterminate + .cbd-checkmark {
+  background:   var(--cbd-primary);
+  border-color: var(--cbd-primary);
+}
+
+input.cbd-checkbox:indeterminate + .cbd-checkmark::after {
+  content:       '';
+  display:       block;
+  width:         8px;
+  height:        2px;
+  background:    var(--cbd-primary-text);
+  border-radius: 1px;
+}
+
+input.cbd-checkbox:hover + .cbd-checkmark {
+  border-color: var(--cbd-primary);
+  box-shadow:   0 0 0 3px rgba(19,115,51,.16);
+}
+
+input.cbd-checkbox:focus-visible + .cbd-checkmark {
+  box-shadow:   0 0 0 3px rgba(19,115,51,.32);
+  border-color: var(--cbd-primary);
+}
+
+/* ── Per-card Checkbox Overlay Label ───────────────────────────── */
+.cbd-checkbox-label {
+  all:      initial;
+  position: absolute;
+  top:      8px;
+  left:     8px;
+  z-index:  100;
+  display:  inline-flex;
+  align-items: center;
+  cursor:   pointer;
+  opacity:  0.7;
+  filter:   drop-shadow(0 1px 3px rgba(0,0,0,.25));
+  transition: opacity var(--cbd-transition);
+}
+
+[data-cbd-injected]:hover .cbd-checkbox-label,
+.cbd-checkbox-label:hover { opacity: 1; }
+
+input.cbd-checkbox:checked ~ .cbd-checkbox-label,
+.cbd-checkbox-label:has(input.cbd-checkbox:checked) { opacity: 1; }
