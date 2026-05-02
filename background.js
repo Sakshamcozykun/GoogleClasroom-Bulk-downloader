@@ -1,4 +1,4 @@
-// background.js — MV3 Service Worker (v2.1)
+// background.js — MV3 Service Worker (v2.3 — Header Fix)
 // Handles BULK_DOWNLOAD messages from content script.
 // Receives pre-built export/download URLs (never raw Drive viewer URLs).
 // Routes downloads through chrome.downloads API with staggered delays.
@@ -15,56 +15,51 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-/**
- * Sequentially triggers chrome.downloads for each file.
- * Uses staggered delays to avoid browser throttling.
- *
- * Each `file` object has:
- *   url      — A direct download or Google export URL (never a viewer URL).
- *   filename — Sanitized filename with appropriate extension (may be empty string).
- */
 async function handleBulkDownload(files, format, sendResponse) {
   const results  = [];
-  const DELAY_MS = 400; // ms between download triggers — slightly more to avoid throttling
+  const DELAY_MS = 400;
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
 
     try {
-      const downloadId = await triggerDownload(file.url, file.filename);
-      results.push({ success: true, filename: file.filename, downloadId });
+      // Pre-flight HEAD check to catch 403/404 before handing to chrome.downloads.
+      // This gives us the actual HTTP status instead of a generic "Failed" message.
+      let preflightError = null;
+      try {
+        const probe = await fetch(file.url, { method: "HEAD", credentials: "include" });
+        if (!probe.ok) {
+          preflightError = `HTTP ${probe.status} ${probe.statusText} — ${file.url}`;
+        }
+      } catch (fetchErr) {
+        // Network error on preflight — still attempt the download, may work
+        console.warn("[CBD] Preflight failed (non-fatal):", fetchErr.message);
+      }
+
+      if (preflightError) {
+        results.push({ success: false, filename: file.filename, error: preflightError });
+      } else {
+        const downloadId = await triggerDownload(file.url, file.filename);
+        results.push({ success: true, filename: file.filename, downloadId });
+      }
     } catch (err) {
       results.push({ success: false, filename: file.filename, error: err.message });
     }
 
-    if (i < files.length - 1) {
-      await sleep(DELAY_MS);
-    }
+    if (i < files.length - 1) await sleep(DELAY_MS);
   }
 
   sendResponse({ results });
 }
 
-/**
- * Wraps chrome.downloads.download in a Promise.
- *
- * URL routing:
- *  - Direct Drive binary:      https://drive.google.com/uc?export=download&id=...
- *  - Google Docs → PDF:        https://docs.google.com/document/d/.../export?format=pdf
- *  - Google Docs → DOCX:       https://docs.google.com/document/d/.../export?format=docx
- *  - Google Slides → PDF:      https://docs.google.com/presentation/d/.../export/pdf
- *  - Google Slides → PPTX:     https://docs.google.com/presentation/d/.../export/pptx
- *  - Google Sheets → PDF:      https://docs.google.com/spreadsheets/d/.../export?format=pdf
- *  - Google Sheets → XLSX:     https://docs.google.com/spreadsheets/d/.../export?format=xlsx
- *
- * All URL construction happens in content.js (buildDownloadUrl).
- * background.js simply passes the URL to chrome.downloads.
- */
 function triggerDownload(url, filename) {
   return new Promise((resolve, reject) => {
+    // FIX: Removed the illegal "Sec-Fetch-Site" header. Chrome downloads 
+    // will now handle cookies natively, and the authuser URL parameter 
+    // from content.js will route it to the correct Google account.
     const options = {
       url,
-      conflictAction: "uniquify",
+      conflictAction: "uniquify"
     };
 
     if (filename && filename.trim() !== "") {
@@ -81,15 +76,9 @@ function triggerDownload(url, filename) {
   });
 }
 
-/**
- * Strips characters illegal in filenames across OS platforms.
- * Replaces spaces with underscores and limits total length.
- * BUG FIX: Added null/undefined guard; preserve file extension during sanitize.
- */
 function sanitizeFilename(name) {
   if (!name || typeof name !== "string") return "";
 
-  // Split extension so we don't mangle it
   const dotIdx = name.lastIndexOf(".");
   const base   = dotIdx > 0 ? name.slice(0, dotIdx) : name;
   const ext    = dotIdx > 0 ? name.slice(dotIdx)    : "";
@@ -99,7 +88,7 @@ function sanitizeFilename(name) {
     .replace(/\s+/g, "_")
     .replace(/__+/g, "_")
     .replace(/^[_-]+|[_-]+$/g, "")
-    .substring(0, 190);               // leave room for extension
+    .substring(0, 190);
 
   return cleanBase + ext;
 }
