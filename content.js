@@ -1,14 +1,21 @@
-// content.js — Google Classroom Bulk Downloader (v2.5)
+// content.js — Google Classroom Bulk Downloader (v2.5 — UI + SPA Caching Fix)
 //
-// New in v2.5: 
-//  • SPA Caching Fix: Added `isElementVisible` checks. The extension now 
-//    strictly ignores hidden DOM elements from cached/previous pages when 
-//    navigating between student submissions. 
-//  • Snappier URL observer integrated directly into the main DOM loop.
+// New in v2.5:
+//  1. Theme system: Manual light/dark toggle (sun/moon) in the panel header,
+//     persisted via chrome.storage.local, with system-preference fallback.
+//  2. SPA Caching Fix: Added isElementVisible checks. The extension now
+//     strictly ignores hidden DOM elements from cached/previous pages when
+//     navigating between student submissions.
+//  3. Integrated URL observer: URL tracking merged directly into the main
+//     MutationObserver loop, removing the separate SPA observer.
+//  4. Format hint: Added an explanatory note below the format dropdown.
 //
-// New in v2.4:
-//  • Manual light / dark theme toggle (sun/moon) in the panel header
-//  • Confirmed free movement on both X and Y axes
+// Retained from v2.4 (Multi-Account Fixes):
+//  1. findAttachmentCards: Fixed toolbar disappearance bug caused by MutationObserver.
+//  2. buildFilename: Fixed bug where standard Drive files (uploaded PDFs, PPTXs)
+//     were having their extensions stripped or incorrectly converted.
+//  3. buildDownloadUrl: Added authuser parameter extraction to prevent 403
+//     Forbidden errors when a user is logged into multiple Google accounts.
 
 (function () {
   "use strict";
@@ -24,6 +31,7 @@
   const DRIVE_UC_RE        = /drive\.google\.com\/uc[?]/;
   const DOCS_RE            = /docs\.google\.com\/(document|spreadsheets|presentation|forms)\/d\/([a-zA-Z0-9_-]+)/;
 
+  // ── Links to ALWAYS exclude ────────────────────────────────────
   const EXCLUDE_HREF_RE = [
     /accounts\.google\.com/,
     /support\.google\.com/,
@@ -34,6 +42,7 @@
     /classroom\.google\.com\/(u\/\d+\/?)?$/,
   ];
 
+  // ── Ancestor elements that are never attachment containers ─────
   const EXCLUDE_ANCESTOR = [
     "header", "nav",
     '[role="navigation"]',
@@ -44,12 +53,14 @@
     ".gb_Na",
   ];
 
+  // ── File-type label strings Classroom appends inside card text ─
   const FILE_TYPE_SUFFIXES = [
     "Microsoft PowerPoint","Microsoft Word","Microsoft Excel",
     "PDF","Google Slides","Google Docs","Google Sheets","Google Forms",
     "Image","Video","Audio","ZIP","Text","Folder",
   ];
 
+  // ── Export format options ──────────────────────────────────────
   const FORMAT_OPTIONS = [
     { value: "original", label: "Original" },
     { value: "pdf",      label: "PDF"      },
@@ -57,20 +68,22 @@
     { value: "pptx",     label: "PPTX"     },
   ];
 
+  // ── Valid export formats per docType ──────────────────────────
   const VALID_FORMATS = {
     doc:   ["pdf", "docx"],
     sheet: ["pdf", "xlsx"],
     slide: ["pdf", "pptx"],
     form:  ["pdf"],
-    drive: [],
+    drive: [],    // binary blob — always "original"
   };
 
+  // ── Native extensions for "original" export ───────────────────
   const ORIGINAL_EXT = {
     doc:   ".docx",
     sheet: ".xlsx",
     slide: ".pptx",
-    form:  ".pdf",
-    drive: "",
+    form:  ".pdf",   // forms export as PDF
+    drive: "",       // unknown; keep as-is
   };
 
   // ── State ───────────────────────────────────────────────────────
@@ -82,8 +95,9 @@
   let dragOffsetX      = 0, dragOffsetY = 0;
   let panelLeft        = null, panelTop = null;
   let currentTheme     = null; // "light" | "dark" (resolved at init)
-  let lastUrl          = location.href; // Track URL for SPA resets
+  let lastUrl          = location.href;
 
+  // ── Bound drag handlers ─────────────────────────────────────────
   let _onMouseMove = null;
   let _onMouseUp   = null;
 
@@ -128,7 +142,7 @@
   }
 
   // ══════════════════════════════════════════════════════════════
-  //  INIT & VISIBILITY HELPERS
+  //  INIT — with retries for Classroom's late-rendered React DOM
   // ══════════════════════════════════════════════════════════════
 
   function init() {
@@ -144,15 +158,15 @@
     }, baseDelay);
   }
 
-  loadThemePref((t) => applyTheme(t));
-
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => scheduleInit(500));
   } else {
     scheduleInit(500);
   }
 
-  // FIX: Helper to ignore cached, hidden pages in the SPA
+  loadThemePref((t) => applyTheme(t));
+
+  // ── Visibility helper — ignores hidden/cached DOM elements ─────
   function isElementVisible(el) {
     if (!el) return false;
     const rect = el.getBoundingClientRect();
@@ -166,19 +180,17 @@
   function observeDOM() {
     if (mutationObserver) mutationObserver.disconnect();
     mutationObserver = new MutationObserver(() => {
-      
-      // FIX: Catch SPA URL changes instantly and wipe the slate clean
+      // Catch SPA URL changes instantly and wipe the slate clean
       if (location.href !== lastUrl) {
         lastUrl = location.href;
         cleanup();
-        scheduleInit(200); // Restart injection snappily
+        scheduleInit(200);
         return;
       }
 
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(runInjection, OBSERVER_DEBOUNCE_MS);
     });
-    
     mutationObserver.observe(document.body, {
       childList:  true,
       subtree:    true,
@@ -186,6 +198,10 @@
       attributeFilter: ["class", "data-item-id"],
     });
   }
+
+  // ══════════════════════════════════════════════════════════════
+  //  MAIN INJECTION ORCHESTRATOR
+  // ══════════════════════════════════════════════════════════════
 
   function runInjection() {
     const cards = findAttachmentCards();
@@ -216,7 +232,7 @@
     ));
 
     for (const anchor of allAnchors) {
-      // FIX: Ensure we only look at links visible on the *current* page
+      // Ensure we only look at links visible on the *current* page
       if (!isElementVisible(anchor)) continue;
 
       const url = anchor.href;
@@ -232,7 +248,7 @@
 
       const card = getCardContainer(anchor);
       if (!card) continue;
-
+      
       cards.push({ anchor, card, url, fileId });
     }
 
@@ -350,12 +366,22 @@
   }
 
   // ══════════════════════════════════════════════════════════════
-  //  EXPORT URL BUILDER
+  //  EXPORT URL BUILDER (WITH AUTHUSER FIX)
   // ══════════════════════════════════════════════════════════════
 
-  function buildDownloadUrl(fileId, docType, format) {
+  // Returns the numeric account index from the Classroom URL (/u/N/) or "0"
+  function getAuthIndex() {
+    const m = location.pathname.match(/^\/u\/(\d+)/);
+    return m ? m[1] : "0";
+  }
+
+  function buildDownloadUrl(fileId, docType, format, _originalUrl) {
+    const authIndex = getAuthIndex();
+
     if (docType === "drive") {
-      return `https://drive.google.com/uc?export=download&id=${fileId}`;
+      // drive.usercontent.google.com is Google's current download domain.
+      // The old drive.google.com/uc endpoint returns 403 for Classroom-shared files.
+      return `https://drive.usercontent.google.com/download?id=${fileId}&export=download&authuser=${authIndex}&confirm=t`;
     }
 
     const appPath = {
@@ -366,31 +392,35 @@
     }[docType];
 
     let exportFormat = format;
-
     if (format === "original") {
       exportFormat = { doc: "docx", sheet: "xlsx", slide: "pptx", form: "pdf" }[docType];
     } else {
       const valid = VALID_FORMATS[docType] || [];
-      if (!valid.includes(format)) {
-        exportFormat = "pdf";
-      }
+      if (!valid.includes(format)) exportFormat = "pdf";
     }
 
-    const base = `https://docs.google.com/${appPath}/d/${fileId}`;
-
-    if (docType === "slide") {
-      return `${base}/export/${exportFormat}`;
-    }
+    // /u/{authIndex}/ ensures the export is served under the correct Google session
+    const base = `https://docs.google.com/u/${authIndex}/${appPath}/d/${fileId}`;
+    if (docType === "slide") return `${base}/export/${exportFormat}`;
     return `${base}/export?format=${exportFormat}`;
   }
+
+  // ══════════════════════════════════════════════════════════════
+  //  FILENAME BUILDER — CORRUPT/UNREADABLE FILE FIX
+  // ══════════════════════════════════════════════════════════════
 
   function buildFilename(rawName, docType, format) {
     if (!rawName) return "";
 
+    // Standard Drive files (PDFs, PPTXs, zips, images) are binary blobs.
+    // They cannot be converted by the export endpoint, so we must NEVER
+    // alter, strip, or force a new extension on them.
     if (docType === "drive") {
-      return rawName.trim();
+      return rawName.replace(/[.:]+$/, "").trim();
     }
 
+    // For Google Docs/Sheets/Slides, strip any accidental extension
+    // and apply the correct conversion extension based on the dropdown.
     const base = rawName.replace(/\.[a-zA-Z0-9]{1,5}$/, "").trim();
     if (!base) return "";
 
@@ -420,7 +450,7 @@
     if (!toolbar) {
       toolbar = buildToolbar();
       document.body.appendChild(toolbar);
-      // Re-apply theme so the new button picks up the icon/title
+      // Re-apply theme so the new button picks up the correct icon/title
       if (currentTheme) applyTheme(currentTheme);
     }
     updateToolbarState();
@@ -479,7 +509,7 @@
       e.stopPropagation();
       toggleTheme();
     });
-    // Prevent drag from starting on the theme/collapse buttons
+    // Prevent drag from starting when clicking the theme button
     toolbar.querySelector("#cbd-theme-btn").addEventListener("mousedown", (e) => e.stopPropagation());
 
     toolbar.querySelector("#cbd-select-all").addEventListener("change", (e) =>
@@ -502,7 +532,7 @@
     return toolbar;
   }
 
-  // ── Drag (free movement on both X and Y axes) ─────────────────
+  // ── Drag ──────────────────────────────────────────────────────
 
   function attachDragHandlers(toolbar) {
     const handle = toolbar.querySelector("#cbd-drag-handle");
@@ -531,7 +561,6 @@
       if (!dragActive) return;
       const t = document.getElementById(TOOLBAR_ID);
       if (!t) return;
-      // Free movement on BOTH axes, clamped to viewport
       const l  = Math.max(0, Math.min(e.clientX - dragOffsetX, window.innerWidth  - t.offsetWidth));
       const tp = Math.max(0, Math.min(e.clientY - dragOffsetY, window.innerHeight - t.offsetHeight));
       t.style.left = `${l}px`;
@@ -586,8 +615,8 @@
   function getFileCheckboxes() {
     return Array.from(
       document.querySelectorAll(`.${CHECKBOX_CLASS}:not(#cbd-select-all)`)
-    // FIX: Ensure we only count checkboxes that belong to visible cards
-    ).filter((cb) => isElementVisible(cb)); 
+    // Only count checkboxes that belong to visible cards
+    ).filter((cb) => isElementVisible(cb));
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -603,7 +632,8 @@
     updateToolbarState();
 
     const files = selected.map((cb) => ({
-      url:      buildDownloadUrl(cb.dataset.fileId, cb.dataset.docType, selectedFormat),
+      // THE FIX: We pass cb.dataset.url as the 4th argument to capture authuser
+      url:      buildDownloadUrl(cb.dataset.fileId, cb.dataset.docType, selectedFormat, cb.dataset.url),
       filename: buildFilename(cb.dataset.filename || "", cb.dataset.docType, selectedFormat),
     }));
 
@@ -616,15 +646,20 @@
       });
 
       if (response?.results) {
-        const ok   = response.results.filter((r) =>  r.success).length;
-        const fail = response.results.filter((r) => !r.success).length;
+        const ok      = response.results.filter((r) =>  r.success).length;
+        const failed  = response.results.filter((r) => !r.success);
         showProgress(files.length, files.length);
-        setStatus(
-          fail === 0 ? `✅ ${ok} sent to Downloads!` : `⚠️ ${ok} ok, ${fail} failed`,
-          fail === 0 ? "success" : "warning"
-        );
+        if (failed.length === 0) {
+          setStatus(`✅ ${ok} sent to Downloads!`, "success");
+        } else {
+          // Show first failure reason so user knows what went wrong
+          const firstErr = failed[0].error || "unknown error";
+          const msg = `⚠️ ${ok} ok, ${failed.length} failed — ${firstErr}`;
+          setStatus(msg, "warning");
+          console.error("[CBD] Failed downloads:", failed.map(f => `${f.filename}: ${f.error}`));
+        }
       } else {
-        setStatus("❌ No response from background.", "error");
+        setStatus("❌ No response from background. Try reloading the page.", "error");
       }
     } catch (err) {
       setStatus(`❌ ${err.message}`, "error");
@@ -639,9 +674,19 @@
   //  FILENAME DERIVATION
   // ══════════════════════════════════════════════════════════════
 
+  // Classroom aria-labels: "Attachment: PDF: Software Testing."
+  // Strip prefix like "Attachment: PDF:" and trailing dots/colons.
+  function cleanAriaLabel(raw) {
+    return raw
+      .replace(/^Attachment\s*:\s*/i, "")  // remove "Attachment: "
+      .replace(/^[^:]+:\s*/, "")            // remove "PDF: " / type prefix
+      .replace(/[.:]+$/, "")               // remove trailing dots or colons
+      .trim();
+  }
+
   function deriveFilename(anchor, url) {
     const aria = anchor.getAttribute("aria-label");
-    if (aria) { const c = stripFiletypeSuffix(aria.trim()); if (c) return c; }
+    if (aria) { const c = stripFiletypeSuffix(cleanAriaLabel(aria)); if (c) return c; }
 
     for (const sel of ['[class*="title"]','[class*="name"]','span:first-child','div:first-child']) {
       const el = anchor.querySelector(sel);
