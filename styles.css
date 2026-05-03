@@ -1,11 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════
-   Classroom Bulk Downloader — styles.css (v2.4)
-   ▸ Material Design matching Google Classroom
-   ▸ Manual light/dark toggle via [data-cbd-theme] on <html>
-   ▸ Falls back to system preference if no manual choice yet
-   ═══════════════════════════════════════════════════════════════ */
 
-/* ── Design Tokens — Light (default) ───────────────────────────── */
 :root {
   --cbd-primary:         #137333;
   --cbd-primary-hover:   #0d5626;
@@ -200,6 +193,15 @@ html[data-cbd-theme="dark"] {
   background: var(--cbd-border);
   color:      var(--cbd-text);
 }
+
+/* ── Refresh button spin animation ──────────────────────────────── */
+@keyframes cbd-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }
+}
+
+#cbd-refresh-btn { font-size: 15px; }
+#cbd-refresh-btn.cbd-spinning { animation: cbd-spin 0.35s linear; }
 
 #cbd-collapse-btn { font-size: 16px; }
 
