@@ -3,6 +3,8 @@ A Chrome extension to seamlessly bulk download Google Classroom attachments, fea
 # Google Classroom Bulk Downloader 
 
 A lightweight, powerful Chrome extension built on Manifest V3 that allows students and teachers to bulk download file attachments from Google Classroom assignments with a single click. 
+<img width="189" height="237" alt="image" src="https://github.com/user-attachments/assets/5529c2a1-7e83-48ad-bb07-430c67e9f2c8" />  <img width="189" height="239" alt="image" src="https://github.com/user-attachments/assets/8163a590-374c-4043-a247-5b897690113d" />
+
 
 ## Features
 * **One-Click Bulk Downloading:** Select multiple attachments and download them simultaneously.
