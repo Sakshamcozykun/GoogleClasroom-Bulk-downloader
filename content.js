@@ -1,21 +1,16 @@
-// content.js — Google Classroom Bulk Downloader (v2.5 — UI + SPA Caching Fix)
+// content.js — Google Classroom Bulk Downloader (v2.6 — Scroll Bug Fix + Refresh Button)
 //
-// New in v2.5:
-//  1. Theme system: Manual light/dark toggle (sun/moon) in the panel header,
-//     persisted via chrome.storage.local, with system-preference fallback.
-//  2. SPA Caching Fix: Added isElementVisible checks. The extension now
-//     strictly ignores hidden DOM elements from cached/previous pages when
-//     navigating between student submissions.
-//  3. Integrated URL observer: URL tracking merged directly into the main
-//     MutationObserver loop, removing the separate SPA observer.
-//  4. Format hint: Added an explanatory note below the format dropdown.
+// New in v2.6:
+//  1. Scroll Bug Fix: Replaced getBoundingClientRect() visibility check with a
+//     DOM-state check (offsetParent / computed display+visibility). The old check
+//     incorrectly treated elements scrolled out of the viewport as invisible,
+//     causing checkboxes on cards above the scroll position to disappear.
+//  2. Refresh Button: Added a refresh button to the toolbar header. One click wipes
+//     all injected checkboxes and re-runs full injection — useful when Classroom's
+//     lazy renderer mutates the DOM after initial load.
 //
-// Retained from v2.4 (Multi-Account Fixes):
-//  1. findAttachmentCards: Fixed toolbar disappearance bug caused by MutationObserver.
-//  2. buildFilename: Fixed bug where standard Drive files (uploaded PDFs, PPTXs)
-//     were having their extensions stripped or incorrectly converted.
-//  3. buildDownloadUrl: Added authuser parameter extraction to prevent 403
-//     Forbidden errors when a user is logged into multiple Google accounts.
+// Retained from v2.5: Theme system, format hint, integrated URL observer.
+// Retained from v2.4: authuser fix, Drive file extension fix, cleanAriaLabel.
 
 (function () {
   "use strict";
@@ -166,11 +161,23 @@
 
   loadThemePref((t) => applyTheme(t));
 
-  // ── Visibility helper — ignores hidden/cached DOM elements ─────
-  function isElementVisible(el) {
-    if (!el) return false;
-    const rect = el.getBoundingClientRect();
-    return rect.width > 0 && rect.height > 0;
+  // ── DOM-state visibility — TRUE if element is rendered in the document,
+  //    regardless of scroll position. getBoundingClientRect() must NOT be
+  //    used here because it returns zero dimensions for elements scrolled
+  //    out of view in Classroom's virtual-scroll layout, which was the
+  //    root cause of checkboxes disappearing after scrolling down.
+  //    We instead check CSS display/visibility and whether the element is
+  //    attached to the live document tree.
+  function isElementInDOM(el) {
+    if (!el || !document.contains(el)) return false;
+    // Walk up the tree checking that no ancestor hides the element
+    let node = el;
+    while (node && node !== document.documentElement) {
+      const s = getComputedStyle(node);
+      if (s.display === "none" || s.visibility === "hidden") return false;
+      node = node.parentElement;
+    }
+    return true;
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -232,8 +239,9 @@
     ));
 
     for (const anchor of allAnchors) {
-      // Ensure we only look at links visible on the *current* page
-      if (!isElementVisible(anchor)) continue;
+      // Skip elements that are hidden by CSS (e.g. cached SPA pages),
+      // but do NOT filter by viewport position — scroll must not matter.
+      if (!isElementInDOM(anchor)) continue;
 
       const url = anchor.href;
       if (!url) continue;
@@ -468,6 +476,7 @@
       <div class="cbd-drag-handle" id="cbd-drag-handle">
         <span class="cbd-drag-dots" aria-hidden="true">⠿</span>
         <span class="cbd-panel-title">Bulk Download</span>
+        <button class="cbd-icon-btn" id="cbd-refresh-btn" title="Refresh checkboxes" aria-label="Refresh checkboxes">↺</button>
         <button class="cbd-icon-btn" id="cbd-theme-btn" title="Toggle theme" aria-label="Toggle theme">☾</button>
         <button class="cbd-icon-btn" id="cbd-collapse-btn" title="Collapse" aria-label="Collapse">−</button>
       </div>
@@ -504,6 +513,12 @@
       body.style.display = isHidden ? "" : "none";
       btn.textContent    = isHidden ? "−" : "+";
     });
+
+    toolbar.querySelector("#cbd-refresh-btn").addEventListener("click", (e) => {
+      e.stopPropagation();
+      refreshCheckboxes();
+    });
+    toolbar.querySelector("#cbd-refresh-btn").addEventListener("mousedown", (e) => e.stopPropagation());
 
     toolbar.querySelector("#cbd-theme-btn").addEventListener("click", (e) => {
       e.stopPropagation();
@@ -615,8 +630,9 @@
   function getFileCheckboxes() {
     return Array.from(
       document.querySelectorAll(`.${CHECKBOX_CLASS}:not(#cbd-select-all)`)
-    // Only count checkboxes that belong to visible cards
-    ).filter((cb) => isElementVisible(cb));
+    // Filter out checkboxes whose cards are hidden by CSS (cached SPA pages),
+    // but never filter by scroll position.
+    ).filter((cb) => isElementInDOM(cb));
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -760,6 +776,38 @@
     if (!el) return;
     el.textContent = msg;
     el.className   = `cbd-status${type ? ` cbd-status--${type}` : ""}`;
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  REFRESH (toolbar button)
+  // ══════════════════════════════════════════════════════════════
+
+  function refreshCheckboxes() {
+    const btn = document.getElementById("cbd-refresh-btn");
+
+    // Visual spinning feedback
+    if (btn) {
+      btn.classList.add("cbd-spinning");
+      btn.disabled = true;
+    }
+
+    // Strip all existing checkboxes and their injected markers so
+    // injectCheckboxes() can re-inject them all from scratch.
+    document.querySelectorAll(".cbd-checkbox-label").forEach((el) => el.remove());
+    document.querySelectorAll("[data-cbd-injected]").forEach((el) => {
+      delete el.dataset.cbdInjected;
+    });
+
+    // Small delay so the spin animation is visible even on fast pages
+    setTimeout(() => {
+      runInjection();
+      if (btn) {
+        btn.classList.remove("cbd-spinning");
+        btn.disabled = false;
+      }
+      setStatus("✔ Refreshed", "success");
+      setTimeout(() => setStatus(""), 2000);
+    }, 350);
   }
 
   // ══════════════════════════════════════════════════════════════
