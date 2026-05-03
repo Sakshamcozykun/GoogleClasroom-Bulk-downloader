@@ -6,7 +6,7 @@ A lightweight, powerful Chrome extension built on Manifest V3 that allows studen
 
 Light mode            |  Dark Mode
 :-------------------------:|:-------------------------:
-![](https://github.com/user-attachments/assets/5529c2a1-7e83-48ad-bb07-430c67e9f2c8) |  ![]([https://...Ocean.png](https://github.com/user-attachments/assets/8163a590-374c-4043-a247-5b897690113d))
+![](https://github.com/user-attachments/assets/5529c2a1-7e83-48ad-bb07-430c67e9f2c8) |  ![](https://github.com/user-attachments/assets/8163a590-374c-4043-a247-5b897690113d)
 
 
 
