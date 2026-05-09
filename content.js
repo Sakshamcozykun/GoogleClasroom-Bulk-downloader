@@ -12,6 +12,8 @@
 // Retained from v2.5: Theme system, format hint, integrated URL observer.
 // Retained from v2.4: authuser fix, Drive file extension fix, cleanAriaLabel.
 
+const api = typeof browser !== "undefined" ? browser : chrome;
+
 (function () {
   "use strict";
 
@@ -117,7 +119,7 @@
 
   function loadThemePref(cb) {
     try {
-      chrome.storage.local.get([THEME_KEY], (res) => {
+      api.storage.local.get([THEME_KEY], (res) => {
         const stored = res && res[THEME_KEY];
         cb(stored === "light" || stored === "dark" ? stored : detectSystemTheme());
       });
@@ -127,7 +129,7 @@
   }
 
   function saveThemePref(theme) {
-    try { chrome.storage.local.set({ [THEME_KEY]: theme }); } catch (_) {}
+    try { api.storage.local.set({ [THEME_KEY]: theme }); } catch (_) {}
   }
 
   function toggleTheme() {
@@ -657,7 +659,7 @@
     setStatus(`Preparing ${files.length} file${files.length !== 1 ? "s" : ""}…`);
 
     try {
-      const response = await chrome.runtime.sendMessage({
+      const response = await api.runtime.sendMessage({
         type: "BULK_DOWNLOAD", files, format: selectedFormat,
       });
 

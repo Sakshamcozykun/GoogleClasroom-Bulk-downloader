@@ -19,15 +19,25 @@ Light mode            |  Dark Mode
 * **Draggable UI:** The download panel can be dragged anywhere on the screen so it never blocks your workflow.
 * **Dark Mode:** Fully supports both system preferences and a manual light/dark mode toggle.
 
-##  Installation (Developer Mode)
+##  Installation (Developer Mode) -- Chrome
 Since this extension is not currently on the Chrome Web Store, you can easily install it locally:
 
 1. Clone or download this repository to your local machine.
-2. Open Google Chrome and navigate to `chrome://extensions/`.
-3. Enable **Developer mode** using the toggle switch in the top right corner.
-4. Click the **Load unpacked** button in the top left.
+2. Open your terminal inside the folder and run ``node build.js chrome``
+3. Open Google Chrome and navigate to `chrome://extensions/`.
+4. Enable **Developer mode** using the toggle switch in the top right corner.
+5. Click the **Load unpacked** button in the top left.
+6. Select the folder containing this repository.
+7. The extension is now installed! Open Google Classroom to see the toolbar.
+
+##  Installation (Developer Mode) -- Firefox
+1. Clone or download this repository to your local machine.
+2. Open your terminal inside the folder and run ``node build.js firefox`  --this automatically chooses the rught json for you.
+3. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`.
+4. Click Load Temporary Add-on
 5. Select the folder containing this repository.
-6. The extension is now installed! Open Google Classroom to see the toolbar.
+6. Select manifest.json
+7. The extension is now installed! Open Google Classroom to see the toolbar.
 
 ## How to Use
 1. Navigate to any assignment page in Google Classroom.
@@ -37,10 +47,12 @@ Since this extension is not currently on the Chrome Web Store, you can easily in
 5. Click **Download** and watch the files save directly to your computer!
 
 ##  Project Structure
-* `manifest.json` - MV3 extension configuration and permissions.
+* `manifest.chrome.json` - MV3 extension configuration and permissions.
+* `manifest.firefox.json` - MV2 extension configuration and permissions.
 * `content.js` - UI injection, URL building, and SPA observation.
 * `background.js` - Service worker for routing downloads via the `chrome.downloads` API.
 * `styles.css` - Material Design styling and draggable panel logic.
+* `build.js` - script to select correct config based on which browser is being used
 
 ## Contributing
 Pull requests are welcome! If you find a bug (like an edge-case file type that fails to download), please open an issue first to discuss what you would like to change.

@@ -1,9 +1,10 @@
 // background.js — MV3 Service Worker (v2.3 — Header Fix)
 // Handles BULK_DOWNLOAD messages from content script.
 // Receives pre-built export/download URLs (never raw Drive viewer URLs).
-// Routes downloads through chrome.downloads API with staggered delays.
+// Routes downloads through api.downloads API with staggered delays.
+const api = typeof browser !== "undefined" ? browser : chrome;
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+api.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "BULK_DOWNLOAD") {
     handleBulkDownload(message.files, message.format || "original", sendResponse);
     return true; // Keep channel open for async response
@@ -23,7 +24,7 @@ async function handleBulkDownload(files, format, sendResponse) {
     const file = files[i];
 
     try {
-      // Pre-flight HEAD check to catch 403/404 before handing to chrome.downloads.
+      // Pre-flight HEAD check to catch 403/404 before handing to api.downloads.
       // This gives us the actual HTTP status instead of a generic "Failed" message.
       let preflightError = null;
       try {
@@ -66,9 +67,9 @@ function triggerDownload(url, filename) {
       options.filename = sanitizeFilename(filename);
     }
 
-    chrome.downloads.download(options, (downloadId) => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
+    api.downloads.download(options, (downloadId) => {
+      if (api.runtime.lastError) {
+        reject(new Error(api.runtime.lastError.message));
       } else {
         resolve(downloadId);
       }
